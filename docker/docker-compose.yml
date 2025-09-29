@@ -1,0 +1,45 @@
+networks:
+  forex_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.51.0.0/24
+          gateway: 172.51.0.1
+
+services:
+  forex-service-db:
+    container_name: forex-service-db
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - forex_network
+    volumes:
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+    ports:
+      - "5432:5432"
+
+  forex-service-api:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    container_name: forex-service-api
+    pull_policy: always
+    environment:
+      - PROFILE=container
+    networks:
+      - forex_network
+    ports:
+      -  "9971:9971"
+    depends_on:
+      forex-service-db:
+        condition: service_healthy
